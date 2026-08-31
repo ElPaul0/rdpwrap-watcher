@@ -16,9 +16,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "startup_delay_minutes": 5,
     "reinstall_wait_seconds": 5,
     "ntfy": {
-        "url": "http://192.168.1.131:8090/rdpwrap-watcher",
-        "user": "admin",
-        "password": "admin",
+        "url": "",
+        "user": "",
+        "password": "",
     },
     "task_names": {
         "startup": "RDPWrapWatcher-Startup",

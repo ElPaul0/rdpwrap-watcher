@@ -10,12 +10,19 @@ class NtfyClient:
     PRIORITY_UPDATED = "4"
     PRIORITY_ERROR = "5"
 
-    def __init__(self, url: str, user: str, password: str, timeout: float = 15.0):
+    def __init__(self, url: str, user: str = "", password: str = "", timeout: float = 15.0):
         self.url = url.rstrip("/")
-        self.auth = (user, password)
+        self.auth = (user, password) if user or password else None
         self.timeout = timeout
 
+    @property
+    def configured(self) -> bool:
+        return bool(self.url)
+
     def send(self, message: str, title: str, priority: str) -> None:
+        if not self.configured:
+            raise RuntimeError("ntfy URL is not configured")
+
         headers = {
             "Title": title,
             "Priority": priority,

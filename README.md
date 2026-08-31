@@ -1,39 +1,39 @@
 # RDPWrap Watcher
 
-Petite app Python portable qui surveille et met à jour automatiquement `rdpwrap.ini` depuis la source [sebaxakerhtc](https://github.com/sebaxakerhtc/rdpwrap.ini), puis réinstalle RDPWrap si le fichier a changé.
+Portable Python app that watches and automatically updates `rdpwrap.ini` from the [sebaxakerhtc](https://github.com/sebaxakerhtc/rdpwrap.ini) source, then reinstalls RDPWrap when the file changes.
 
-Conçue pour tourner directement dans le dossier RDPWrap d'une VM Windows (à côté de `rdpwrap.ini` et `RDPWInst.exe`).
-
----
-
-## À quoi ça sert
-
-Après une mise à jour Windows, RDPWrap a souvent besoin d'un `rdpwrap.ini` à jour. Ce watcher :
-
-1. Télécharge le fichier source sur GitHub
-2. Compare le **hash SHA256** avec le fichier local
-3. Si différent → remplace `rdpwrap.ini` et réinstalle RDPWrap
-4. Envoie une notification **ntfy** selon le résultat
+Designed to run directly inside your RDPWrap folder on a Windows VM (next to `rdpwrap.ini` and `RDPWInst.exe`).
 
 ---
 
-## Prérequis
+## What it does
 
-- **Windows** (VM serveur)
-- **Python 3** installé (3.14+ sur ta VM)
-- **Droits administrateur** pour le `setup` (RDPWInst + tâches planifiées)
-- Accès réseau vers GitHub et vers ton serveur ntfy
+After a Windows update, RDPWrap often needs an up-to-date `rdpwrap.ini`. This watcher:
+
+1. Downloads the remote source file from GitHub
+2. Compares the **SHA256 hash** with the local file
+3. If different → replaces `rdpwrap.ini` and reinstalls RDPWrap
+4. Sends an **ntfy** notification based on the result
+
+---
+
+## Requirements
+
+- **Windows** (server VM)
+- **Python 3** installed
+- **Administrator rights** for `setup` (RDPWInst + scheduled tasks)
+- Network access to GitHub and your ntfy server
 
 ---
 
 ## Installation
 
-### 1. Copier les fichiers dans le dossier RDPWrap
+### 1. Copy files into the RDPWrap folder
 
-Le dossier RDPWrap doit ressembler à ça :
+Your RDPWrap folder should look like this:
 
 ```
-C:\RDPWrap\                     ← exemple de chemin
+C:\RDPWrap\                     ← example path
 ├── rdpwrap.ini
 ├── RDPWInst.exe
 ├── rdpwrap-watcher.bat
@@ -49,101 +49,113 @@ C:\RDPWrap\                     ← exemple de chemin
     └── watcher.py
 ```
 
-> **Important** : lance toujours les commandes **depuis ce dossier** (là où se trouvent `rdpwrap.ini` et `RDPWInst.exe`).
+> **Important**: always run commands **from this folder** (where `rdpwrap.ini` and `RDPWInst.exe` live).
 
-### 2. Installer les dépendances Python (une seule fois)
+### 2. Install Python dependencies (one time)
 
-Ouvrir PowerShell ou CMD dans le dossier RDPWrap :
+Open PowerShell or CMD in the RDPWrap folder:
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-Dépendances : `pyyaml`, `requests`.
+Dependencies: `pyyaml`, `requests`.
 
-### 3. Setup initial (en administrateur)
+### 3. Initial setup (as administrator)
 
-Clic droit sur PowerShell → **Exécuter en tant qu'administrateur**, puis :
+Right-click PowerShell → **Run as administrator**, then:
 
 ```powershell
 cd C:\RDPWrap
 .\rdpwrap-watcher.bat setup
 ```
 
-Le setup :
-- crée `config.yaml` (si absent)
-- génère `run-watcher.bat` (script lancé par le planificateur)
-- installe **2 tâches planifiées Windows** :
-  - **RDPWrapWatcher-Startup** → 5 min après chaque démarrage
-  - **RDPWrapWatcher-Daily** → tous les jours à 03:00
+Setup will:
+- create `config.yaml` (if missing)
+- generate `run-watcher.bat` (script used by the scheduler)
+- install **2 Windows scheduled tasks**:
+  - **RDPWrapWatcher-Startup** → 5 min after each boot
+  - **RDPWrapWatcher-Daily** → every day at 03:00
+
+### 4. Configure ntfy
+
+After setup, configure your notification topic:
+
+```powershell
+.\rdpwrap-watcher.bat config-set ntfy-url https://your-ntfy-server/your-topic
+.\rdpwrap-watcher.bat config-set ntfy-user your-username
+.\rdpwrap-watcher.bat config-set ntfy-password your-password
+```
+
+Credentials are stored locally in `config.yaml` (gitignored). They are not included in the repository.
 
 ---
 
-## Commandes
+## Commands
 
-Toutes les commandes passent par le `.bat` ou directement par Python :
+All commands go through the `.bat` launcher or Python directly:
 
 ```powershell
-.\rdpwrap-watcher.bat <commande>
-# ou
-python -m rdpwrap_watcher <commande>
+.\rdpwrap-watcher.bat <command>
+# or
+python -m rdpwrap_watcher <command>
 ```
 
-| Commande | Description |
+| Command | Description |
 |---|---|
-| `setup` | Crée la config + installe les tâches planifiées |
-| `run` | Vérification **immédiate** (one-shot) |
-| `run --no-notify` | Idem, sans notification ntfy |
-| `config-show` | Affiche la configuration actuelle |
-| `config-set <clé> <valeur>` | Modifie un paramètre |
-| `uninstall` | Supprime les tâches planifiées |
+| `setup` | Create config + install scheduled tasks |
+| `run` | **Immediate** one-shot check |
+| `run --no-notify` | Same, without ntfy notifications |
+| `config-show` | Show current configuration |
+| `config-set <key> <value>` | Update a setting |
+| `uninstall` | Remove scheduled tasks |
 
-### Exemples
+### Examples
 
 ```powershell
-# Vérification manuelle tout de suite
+# Manual check right now
 .\rdpwrap-watcher.bat run
 
-# Voir la config
+# Show config
 .\rdpwrap-watcher.bat config-show
 
-# Changer l'heure du check quotidien (recrée les tâches)
+# Change daily check time (recreates scheduled tasks)
 .\rdpwrap-watcher.bat config-set schedule-time 04:30 --reinstall-tasks
 
-# Changer le délai après démarrage Windows
+# Change startup delay after Windows boot
 .\rdpwrap-watcher.bat config-set startup-delay 10 --reinstall-tasks
 
-# Changer l'URL source
+# Change source URL
 .\rdpwrap-watcher.bat config-set source-url https://raw.githubusercontent.com/sebaxakerhtc/rdpwrap.ini/master/rdpwrap.ini
 
-# Changer le serveur ntfy
-.\rdpwrap-watcher.bat config-set ntfy-url http://192.168.1.131:8090/rdpwrap-watcher
-.\rdpwrap-watcher.bat config-set ntfy-user admin
-.\rdpwrap-watcher.bat config-set ntfy-password admin
+# Configure ntfy
+.\rdpwrap-watcher.bat config-set ntfy-url https://your-ntfy-server/your-topic
+.\rdpwrap-watcher.bat config-set ntfy-user your-username
+.\rdpwrap-watcher.bat config-set ntfy-password your-password
 
-# Désinstaller les tâches planifiées
+# Remove scheduled tasks
 .\rdpwrap-watcher.bat uninstall
 ```
 
-### Clés disponibles pour `config-set`
+### Available `config-set` keys
 
-| Clé CLI | Paramètre YAML | Description |
+| CLI key | YAML setting | Description |
 |---|---|---|
-| `source-url` | `source_url` | URL raw du fichier ini distant |
-| `schedule-time` | `schedule_time` | Heure du check quotidien (`HH:MM`) |
-| `startup-delay` | `startup_delay_minutes` | Minutes après boot avant check |
-| `reinstall-wait` | `reinstall_wait_seconds` | Pause entre désinstall et réinstall |
-| `ntfy-url` | `ntfy.url` | URL du topic ntfy |
-| `ntfy-user` | `ntfy.user` | Utilisateur ntfy |
-| `ntfy-password` | `ntfy.password` | Mot de passe ntfy |
+| `source-url` | `source_url` | Raw URL of the remote ini file |
+| `schedule-time` | `schedule_time` | Daily check time (`HH:MM`) |
+| `startup-delay` | `startup_delay_minutes` | Minutes after boot before check |
+| `reinstall-wait` | `reinstall_wait_seconds` | Pause between uninstall and reinstall |
+| `ntfy-url` | `ntfy.url` | ntfy topic URL |
+| `ntfy-user` | `ntfy.user` | ntfy username |
+| `ntfy-password` | `ntfy.password` | ntfy password |
 
-> Ajouter `--reinstall-tasks` après un changement d'horaire ou de délai boot pour mettre à jour les tâches planifiées.
+> Add `--reinstall-tasks` after changing schedule time or startup delay to update scheduled tasks.
 
 ---
 
 ## Configuration (`config.yaml`)
 
-Fichier créé automatiquement au `setup`. Exemple :
+Created automatically on `setup`. See `config.yaml.example` for the full template.
 
 ```yaml
 source_url: https://raw.githubusercontent.com/sebaxakerhtc/rdpwrap.ini/master/rdpwrap.ini
@@ -153,129 +165,139 @@ schedule_time: "03:00"
 startup_delay_minutes: 5
 reinstall_wait_seconds: 5
 ntfy:
-  url: http://192.168.1.131:8090/rdpwrap-watcher
-  user: admin
-  password: admin
+  url: https://your-ntfy-server/your-topic
+  user: your-username
+  password: your-password
 task_names:
   startup: RDPWrapWatcher-Startup
   daily: RDPWrapWatcher-Daily
 ```
 
-Tu peux éditer ce fichier à la main ou via `config-set` / `config-show`.
+You can edit this file manually or via `config-set` / `config-show`.
 
-> **Note** : utilise toujours l'URL **raw** GitHub (`raw.githubusercontent.com/...`), pas l'URL `blob/` qui renvoie du HTML.
+> **Note**: always use the GitHub **raw** URL (`raw.githubusercontent.com/...`), not the `blob/` URL which returns HTML.
 
 ---
 
-## Fonctionnement détaillé
+## How it works
 
-À chaque exécution (manuelle ou planifiée) :
+On each run (manual or scheduled):
 
 ```
-Télécharger ini distant
+Download remote ini
         ↓
-Comparer SHA256 avec rdpwrap.ini local
+Compare SHA256 with local rdpwrap.ini
         ↓
-   Identique ? ──→ Notif ntfy (priorité medium) → Fin
-        ↓ Non
-Sauvegarder l'ancien fichier en mémoire
+   Match? ──→ ntfy notification (medium priority) → Done
+        ↓ No
+Backup current file in memory
         ↓
-Écrire le nouveau rdpwrap.ini
+Write new rdpwrap.ini
         ↓
 RDPWInst.exe -u -k
         ↓
-Attendre 5 secondes
+Wait 5 seconds
         ↓
 RDPWInst.exe -i
         ↓
-   Échec ? ──→ Restaurer l'ancien ini → Notif ntfy (priorité max)
+   Failed? ──→ Restore previous ini → ntfy notification (max priority)
         ↓ OK
-Notif ntfy (priorité high) → Fin
+ntfy notification (high priority) → Done
 ```
 
 ---
 
-## Notifications ntfy
+## ntfy notifications
 
-| Situation | Priorité | Signification |
+| Situation | Priority | Meaning |
 |---|---|---|
-| Tout OK, pas de changement | **medium** (3) | Rien à faire |
-| Ini mis à jour + réinstall OK | **high** (4) | Action effectuée |
-| Erreur (réseau, RDPWInst, etc.) | **max** (5) | Intervention nécessaire |
+| All good, no change | **medium** (3) | Nothing to do |
+| Ini updated + reinstall OK | **high** (4) | Action completed |
+| Error (network, RDPWInst, etc.) | **max** (5) | Manual intervention needed |
 
-Topic par défaut : `http://192.168.1.131:8090/rdpwrap-watcher`
+Notifications are skipped if `ntfy.url` is not configured.
 
 ---
 
-## Tâches planifiées Windows
+## Windows scheduled tasks
 
-Vérifiables dans **Planificateur de tâches** (`taskschd.msc`) :
+Check them in **Task Scheduler** (`taskschd.msc`):
 
-| Nom | Déclencheur | Privilèges |
+| Name | Trigger | Privileges |
 |---|---|---|
-| `RDPWrapWatcher-Startup` | Au démarrage, +5 min | Élevés |
-| `RDPWrapWatcher-Daily` | Quotidien à 03:00 | Élevés |
+| `RDPWrapWatcher-Startup` | At startup, +5 min delay | Highest |
+| `RDPWrapWatcher-Daily` | Daily at 03:00 | Highest |
 
-Les deux tâches exécutent `run-watcher.bat`, généré automatiquement au setup.
+Both tasks run `run-watcher.bat`, generated automatically during setup.
 
-Pour supprimer : `.\rdpwrap-watcher.bat uninstall`
+To remove them: `.\rdpwrap-watcher.bat uninstall`
+
+Quick check from PowerShell:
+
+```powershell
+Get-ScheduledTask -TaskName "RDPWrapWatcher-*" | Format-Table TaskName, State
+```
 
 ---
 
-## Dépannage
+## Troubleshooting
 
-### Le setup échoue sur les tâches planifiées
-→ Relancer PowerShell **en administrateur**.
+### Setup fails on scheduled tasks
+→ Re-run PowerShell **as administrator**.
 
-### `RDPWInst.exe introuvable`
-→ Vérifier que tu es bien dans le dossier RDPWrap et que `RDPWInst.exe` est présent.
+### `RDPWInst.exe not found`
+→ Make sure you are in the RDPWrap folder and `RDPWInst.exe` is present.
 
-### Pas de notification ntfy
-→ Vérifier que le serveur ntfy est joignable depuis la VM (`http://192.168.1.131:8090`).
-→ Tester manuellement : `.\rdpwrap-watcher.bat run`
+### No ntfy notification
+→ Check that ntfy is configured: `.\rdpwrap-watcher.bat config-show`
+→ Verify your ntfy server is reachable from the VM.
+→ Test manually: `.\rdpwrap-watcher.bat run`
 
-### Forcer une vérification sans notif (debug)
+### Force a check without notifications (debug)
 ```powershell
 python -m rdpwrap_watcher run --no-notify
 ```
 
-### Spécifier un autre dossier RDPWrap
+### Use a different RDPWrap folder
 ```powershell
-python -m rdpwrap_watcher run --dir "D:\Chemin\Vers\RDPWrap"
+python -m rdpwrap_watcher run --dir "D:\Path\To\RDPWrap"
 ```
 
-### Voir l'historique des exécutions planifiées
-→ Planificateur de tâches → bibliothèque → clic droit sur la tâche → **Historique**.
+### View scheduled task history
+→ Task Scheduler → Task Scheduler Library → right-click the task → **History**.
 
 ---
 
-## Fichiers du projet
+## Project files
 
-| Fichier | Rôle |
+| File | Role |
 |---|---|
-| `rdpwrap-watcher.bat` | Lanceur principal (double-clic ou CLI) |
-| `rdpwrap_watcher/` | Code Python du watcher |
-| `config.yaml` | Config active (créée au setup) |
-| `config.yaml.example` | Modèle de référence |
-| `run-watcher.bat` | Script généré pour le planificateur |
-| `requirements.txt` | Dépendances pip |
+| `rdpwrap-watcher.bat` | Main launcher |
+| `rdpwrap_watcher/` | Python watcher code |
+| `config.yaml` | Active config (created on setup, gitignored) |
+| `config.yaml.example` | Reference template |
+| `run-watcher.bat` | Generated script for the scheduler |
+| `requirements.txt` | pip dependencies |
 
 ---
 
-## Rappel rapide (version TL;DR)
+## Quick reference
 
 ```powershell
-# Première fois
+# First time
 pip install -r requirements.txt
-.\rdpwrap-watcher.bat setup          # en admin
+.\rdpwrap-watcher.bat setup          # run as admin
+.\rdpwrap-watcher.bat config-set ntfy-url https://your-ntfy-server/your-topic
+.\rdpwrap-watcher.bat config-set ntfy-user your-username
+.\rdpwrap-watcher.bat config-set ntfy-password your-password
 
-# Check manuel
+# Manual check
 .\rdpwrap-watcher.bat run
 
-# Voir / modifier la config
+# View / update config
 .\rdpwrap-watcher.bat config-show
 .\rdpwrap-watcher.bat config-set schedule-time 03:00 --reinstall-tasks
 
-# Tout retirer
+# Remove everything
 .\rdpwrap-watcher.bat uninstall
 ```

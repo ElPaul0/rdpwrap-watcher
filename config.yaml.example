@@ -5,9 +5,9 @@ schedule_time: "03:00"
 startup_delay_minutes: 5
 reinstall_wait_seconds: 5
 ntfy:
-  url: http://192.168.1.131:8090/rdpwrap-watcher
-  user: admin
-  password: admin
+  url: https://ntfy.example.com/your-topic
+  user: your-username
+  password: your-password
 task_names:
   startup: RDPWrapWatcher-Startup
   daily: RDPWrapWatcher-Daily

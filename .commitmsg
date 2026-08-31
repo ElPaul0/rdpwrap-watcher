@@ -1,0 +1,3 @@
+Translate project to English and remove hardcoded credentials.
+
+Use empty ntfy defaults, placeholder values in the example config, and skip notifications when ntfy is not configured.

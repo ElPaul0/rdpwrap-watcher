@@ -9,7 +9,7 @@ from pathlib import Path
 import yaml
 
 from . import __version__
-from .config import DEFAULT_CONFIG, init_config, load_config, save_config
+from .config import init_config, load_config, save_config
 from .scheduler import install_tasks, remove_tasks
 from .watcher import run_check
 
@@ -23,21 +23,23 @@ def _base_dir(explicit: str | None) -> Path:
 def _cmd_setup(args: argparse.Namespace) -> int:
     base = _base_dir(args.dir)
     path = init_config(base)
-    print(f"Config créé/mis à jour: {path}")
+    print(f"Config created/updated: {path}")
 
     try:
         tasks = install_tasks(base)
     except RuntimeError as exc:
-        print(f"Erreur planification: {exc}", file=sys.stderr)
-        print("Relance en administrateur si nécessaire.", file=sys.stderr)
+        print(f"Scheduler error: {exc}", file=sys.stderr)
+        print("Re-run as administrator if needed.", file=sys.stderr)
         return 1
 
     cfg = load_config(base)
-    print("Tâches planifiées installées:")
+    print("Scheduled tasks installed:")
     for name in tasks:
         print(f"  - {name}")
-    print(f"  Démarrage: {cfg['startup_delay_minutes']} min après boot")
-    print(f"  Quotidien: {cfg['schedule_time']}")
+    print(f"  Startup: {cfg['startup_delay_minutes']} min after boot")
+    print(f"  Daily: {cfg['schedule_time']}")
+    if not cfg["ntfy"]["url"]:
+        print("  Note: ntfy is not configured yet. Use config-set to add your topic URL and credentials.")
     return 0
 
 
@@ -48,7 +50,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(result.message)
         return 0
     except Exception as exc:
-        print(f"Échec: {exc}", file=sys.stderr)
+        print(f"Failed: {exc}", file=sys.stderr)
         return 1
 
 
@@ -76,8 +78,8 @@ def _cmd_config_set(args: argparse.Namespace) -> int:
     }
 
     if key not in mapping:
-        print(f"Clé inconnue: {key}", file=sys.stderr)
-        print(f"Clés valides: {', '.join(mapping)}", file=sys.stderr)
+        print(f"Unknown key: {key}", file=sys.stderr)
+        print(f"Valid keys: {', '.join(mapping)}", file=sys.stderr)
         return 1
 
     target = mapping[key]
@@ -95,14 +97,14 @@ def _cmd_config_set(args: argparse.Namespace) -> int:
         cfg[target] = value
 
     path = save_config(cfg, base)
-    print(f"Config sauvegardée: {path}")
+    print(f"Config saved: {path}")
 
     if args.reinstall_tasks:
         try:
             install_tasks(base)
-            print("Tâches planifiées mises à jour.")
+            print("Scheduled tasks updated.")
         except RuntimeError as exc:
-            print(f"Tâches non mises à jour: {exc}", file=sys.stderr)
+            print(f"Scheduled tasks not updated: {exc}", file=sys.stderr)
             return 1
     return 0
 
@@ -110,7 +112,7 @@ def _cmd_config_set(args: argparse.Namespace) -> int:
 def _cmd_uninstall(args: argparse.Namespace) -> int:
     base = _base_dir(args.dir)
     names = remove_tasks(base)
-    print("Tâches supprimées:")
+    print("Scheduled tasks removed:")
     for name in names:
         print(f"  - {name}")
     return 0
@@ -119,33 +121,33 @@ def _cmd_uninstall(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="rdpwrap-watcher",
-        description="Surveille et met à jour rdpwrap.ini depuis la source Seba.",
+        description="Watch and update rdpwrap.ini from the Seba source.",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument(
         "--dir",
-        help="Dossier RDPWrap (défaut: répertoire courant)",
+        help="RDPWrap folder (default: current directory)",
     )
 
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("setup", help="Initialise config.yaml et installe les tâches planifiées")
+    sub.add_parser("setup", help="Initialize config.yaml and install scheduled tasks")
 
-    run_p = sub.add_parser("run", help="Vérification instantanée (one-shot)")
-    run_p.add_argument("--no-notify", action="store_true", help="Désactive les notifications ntfy")
+    run_p = sub.add_parser("run", help="Run an immediate one-shot check")
+    run_p.add_argument("--no-notify", action="store_true", help="Disable ntfy notifications")
 
-    sub.add_parser("config-show", help="Affiche la configuration actuelle")
+    sub.add_parser("config-show", help="Show the current configuration")
 
-    set_p = sub.add_parser("config-set", help="Modifie un paramètre de configuration")
-    set_p.add_argument("key", help="Clé (source-url, schedule-time, startup-delay, ...)")
-    set_p.add_argument("value", help="Nouvelle valeur")
+    set_p = sub.add_parser("config-set", help="Update a configuration value")
+    set_p.add_argument("key", help="Key (source-url, schedule-time, startup-delay, ...)")
+    set_p.add_argument("value", help="New value")
     set_p.add_argument(
         "--reinstall-tasks",
         action="store_true",
-        help="Recrée les tâches planifiées après modification de l'horaire",
+        help="Recreate scheduled tasks after changing schedule settings",
     )
 
-    sub.add_parser("uninstall", help="Supprime les tâches planifiées Windows")
+    sub.add_parser("uninstall", help="Remove Windows scheduled tasks")
 
     return parser
 

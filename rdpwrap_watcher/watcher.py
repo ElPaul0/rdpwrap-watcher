@@ -42,7 +42,7 @@ def download_source(url: str, timeout: float = 30.0) -> bytes:
 
 def reinstall_rdpwrap(rdpwinst: Path, wait_seconds: int) -> None:
     if not rdpwinst.exists():
-        raise FileNotFoundError(f"RDPWInst.exe introuvable: {rdpwinst}")
+        raise FileNotFoundError(f"RDPWInst.exe not found: {rdpwinst}")
 
     cwd = rdpwinst.parent
     subprocess.run(
@@ -60,6 +60,15 @@ def reinstall_rdpwrap(rdpwinst: Path, wait_seconds: int) -> None:
         capture_output=True,
         text=True,
     )
+
+
+def _notify(ntfy: NtfyClient, method: str, message: str) -> None:
+    if not ntfy.configured:
+        return
+    try:
+        getattr(ntfy, method)(message)
+    except Exception as ntfy_err:
+        print(f"ntfy notification skipped: {ntfy_err}", file=sys.stderr)
 
 
 def run_check(base_dir: Path | None = None, notify: bool = True) -> WatchResult:
@@ -84,12 +93,9 @@ def run_check(base_dir: Path | None = None, notify: bool = True) -> WatchResult:
             local_hash = None
 
         if local_hash == remote_hash:
-            msg = f"Aucune mise à jour nécessaire (hash identique).\nSource: {source_url}"
+            msg = f"No update required (hash match).\nSource: {source_url}"
             if notify:
-                try:
-                    ntfy.ok(msg)
-                except Exception as ntfy_err:
-                    print(f"Notification ntfy ignorée: {ntfy_err}", file=sys.stderr)
+                _notify(ntfy, "ok", msg)
             return WatchResult(updated=False, reinstalled=False, message=msg)
 
         backup = None
@@ -107,22 +113,16 @@ def run_check(base_dir: Path | None = None, notify: bool = True) -> WatchResult:
             raise
 
         msg = (
-            f"rdpwrap.ini mis à jour et RDPWrap réinstallé.\n"
-            f"Ancien hash: {local_hash or 'absent'}\n"
-            f"Nouveau hash: {remote_hash}"
+            f"rdpwrap.ini updated and RDPWrap reinstalled.\n"
+            f"Previous hash: {local_hash or 'missing'}\n"
+            f"New hash: {remote_hash}"
         )
         if notify:
-            try:
-                ntfy.updated(msg)
-            except Exception as ntfy_err:
-                print(f"Notification ntfy ignorée: {ntfy_err}", file=sys.stderr)
+            _notify(ntfy, "updated", msg)
         return WatchResult(updated=True, reinstalled=True, message=msg)
 
     except Exception as exc:
-        msg = f"Erreur watcher: {exc}"
+        msg = f"Watcher error: {exc}"
         if notify:
-            try:
-                ntfy.error(msg)
-            except Exception:
-                pass
+            _notify(ntfy, "error", msg)
         raise
