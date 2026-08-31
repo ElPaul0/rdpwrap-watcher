@@ -1,0 +1,13 @@
+source_url: https://raw.githubusercontent.com/sebaxakerhtc/rdpwrap.ini/master/rdpwrap.ini
+local_ini: rdpwrap.ini
+rdpwinst: RDPWInst.exe
+schedule_time: "03:00"
+startup_delay_minutes: 5
+reinstall_wait_seconds: 5
+ntfy:
+  url: http://192.168.1.131:8090/rdpwrap-watcher
+  user: admin
+  password: admin
+task_names:
+  startup: RDPWrapWatcher-Startup
+  daily: RDPWrapWatcher-Daily

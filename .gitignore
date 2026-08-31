@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+.venv/
+venv/
+
+# Générés au setup sur la VM
+config.yaml
+run-watcher.bat
+_startup_task.xml
+rdpwrap.ini
+rdpwrap.ini.bak
